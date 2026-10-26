@@ -553,13 +553,36 @@ def get_scan_func(module) -> Optional[Callable[[str], Any]]:
 
 def find_module(name: str, is_email: bool = False, no_nsfw: bool = False) -> List[ModuleType]:
     name = name.lower()
+    get_type = type
+    string_type = str
+    length = len
+    if get_type(name) is not string_type:
+        return [
+            module
+            for category_path in load_categories(is_email, no_nsfw).values()
+            for module in load_modules(category_path)
+            if module.__name__.split(".")[-1].lower() == name
+        ]
+    name_length = length(name)
 
-    return [
-        module
-        for category_path in load_categories(is_email, no_nsfw).values()
-        for module in load_modules(category_path)
-        if module.__name__.split(".")[-1].lower() == name
-    ]
+    matches = []
+    for category_path in load_categories(is_email, no_nsfw).values():
+        for module in load_modules(category_path):
+            module_name = module.__name__
+            if get_type(module_name) is string_type:
+                if (
+                    length(module_name) != name_length
+                    and module_name.isascii()
+                    and "." not in module_name
+                ):
+                    continue
+                if "." in module_name:
+                    module_name = module_name.split(".")[-1]
+            else:
+                module_name = module_name.split(".")[-1]
+            if module_name.lower() == name:
+                matches.append(module)
+    return matches
 
 
 def find_category(module: ModuleType) -> str | None:
